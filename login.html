@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sign In — só.ra</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="login-body">
+  <div class="login-shell login-shell-simple">
+    <div class="login-panel login-panel-brand">
+      <div class="login-brand-mark">S.R</div>
+      <h1 class="login-brand-title">só.ra Coffee House</h1>
+      <p class="login-brand-sub">Point of Sales System</p>
+    </div>
+    <div class="login-panel login-panel-form">
+      <h2 class="login-form-title">Sign in</h2>
+      <p class="login-form-sub">Select your access level.</p>
+
+      <div class="login-role-tabs">
+        <button type="button" class="login-tab active" id="tab-staff" onclick="setLoginTab('staff')">Staff</button>
+        <button type="button" class="login-tab" id="tab-owner" onclick="setLoginTab('owner')">Owner</button>
+      </div>
+
+      <div id="panel-staff">
+        <button type="button" class="btn-login-primary" onclick="loginAsStaff()">Continue as Staff</button>
+      </div>
+
+      <div id="panel-owner" class="hidden">
+        <div class="modal-field">
+          <label class="flabel" for="login-owner-pw">Owner password</label>
+          <input type="password" id="login-owner-pw" class="finput" placeholder="Enter password"
+            onkeydown="if(event.key==='Enter')loginAsOwner()"/>
+        </div>
+        <div id="login-error" class="modal-error" style="display:none"></div>
+        <button type="button" class="btn-login-primary" onclick="loginAsOwner()">Continue as Owner</button>
+      </div>
+    </div>
+  </div>
+  <script src="js/auth.js"></script>
+  <script>
+    if (getSession()) window.location.href = 'index.html';
+    function setLoginTab(t) {
+      document.getElementById('tab-staff').classList.toggle('active', t === 'staff');
+      document.getElementById('tab-owner').classList.toggle('active', t === 'owner');
+      document.getElementById('panel-staff').classList.toggle('hidden', t !== 'staff');
+      document.getElementById('panel-owner').classList.toggle('hidden', t !== 'owner');
+      document.getElementById('login-error').style.display = 'none';
+    }
+    function loginAsStaff() {
+      setSession({ role: 'staff', name: 'Staff' });
+      window.location.href = 'index.html';
+    }
+    function loginAsOwner() {
+      const pw = document.getElementById('login-owner-pw').value;
+      const err = document.getElementById('login-error');
+      if (pw !== OWNER_PASSWORD) {
+        err.textContent = 'Incorrect password.';
+        err.style.display = 'block';
+        return;
+      }
+      setSession({ role: 'owner', name: 'Owner' });
+      window.location.href = 'index.html';
+    }
+  </script>
+</body>
+</html>

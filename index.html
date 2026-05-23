@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sales & Cash Information System</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Firebase v8 (compat) — replace config in firebase.js if using Firestore -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+</head>
+<body>
+<div class="app" id="app-root">
+
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-mark">S.R</div>
+      <div class="logo-text">
+        <div class="logo-title">só.ra</div>
+        <div class="logo-sub">Coffee House</div>
+      </div>
+    </div>
+    <div class="logo-tagline">Accounting Information System</div>
+    <nav class="nav">
+      <div id="staff-nav">
+        <div class="nav-sect">Operations</div>
+        <div class="nav-item active" onclick="sp('sales')" id="nav-sales">Sales Entry</div>
+        <div class="nav-item" onclick="openIncomingOrders()" id="nav-incoming-orders">
+          Incoming Orders <span id="incoming-nav-badge" class="nav-badge" style="display:none">0</span>
+        </div>
+        <div class="nav-item" onclick="sp('today-history')" id="nav-today-history">Today&apos;s Transactions</div>
+      </div>
+
+      <div id="owner-nav" style="display:none">
+        <div class="nav-sect">Overview</div>
+        <div class="nav-item" onclick="sp('dashboard')" id="nav-dashboard">Dashboard</div>
+        <div class="nav-sect">Operations</div>
+        <div class="nav-item" onclick="sp('sales')" id="nav-owner-sales" data-page-nav="sales">Sales Entry</div>
+        <div class="nav-item" onclick="sp('today-history')" id="nav-owner-today-history" data-page-nav="today-history">Today&apos;s Transactions</div>
+        <div class="nav-sect">Transactions</div>
+        <div class="nav-item" onclick="sp('history')" id="nav-history">Transaction Log</div>
+        <div class="nav-sect">Expenses</div>
+        <div class="nav-item" onclick="sp('expense')" id="nav-expense">Expense Entry</div>
+        <div class="nav-item" onclick="sp('explog')" id="nav-explog">Expense Log</div>
+        <div class="nav-sect">Inventory</div>
+        <div class="nav-item" onclick="sp('inventory')" id="nav-inventory">Stock & Inventory</div>
+        <div class="nav-item" onclick="sp('menu-management')" id="nav-menu-mgmt">Menu Management</div>
+        <div class="nav-item" onclick="sp('purchasing')" id="nav-purchasing">Purchasing</div>
+        <div class="nav-sect">Accounting</div>
+        <div class="nav-item" onclick="sp('payable')" id="nav-payable">Account Payable</div>
+        <div class="nav-item" onclick="sp('recon')" id="nav-recon">Reconciliation</div>
+        <div class="nav-item" onclick="sp('journal')" id="nav-journal">General Ledger</div>
+        <div class="nav-item" onclick="sp('deletion-history')" id="nav-deletion-history">Deletion History</div>
+        <div class="nav-sect">Reports</div>
+        <div class="nav-item" onclick="sp('daily')" id="nav-daily">Daily Sales Report</div>
+        <div class="nav-item" onclick="sp('report')" id="nav-report">Financial Report</div>
+        <div class="nav-item" onclick="sp('balance-sheet')" id="nav-balance-sheet">Balance Sheet</div>
+      </div>
+    </nav>
+    <div class="sidebar-auth">
+      <button type="button" id="elevate-owner-btn" class="btn-owner-in" onclick="openElevateOwnerModal()" style="display:none">Switch to Owner</button>
+      <button type="button" id="sign-out-btn" class="btn-owner-out" onclick="signOut()">Sign Out</button>
+    </div>
+  </aside>
+
+<!-- MODAL ELEVATE OWNER (inline password) -->
+<div id="elevate-owner-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-compact">
+    <div class="modal-login-title">Owner Access</div>
+    <div class="modal-login-sub">Enter owner password to unlock full modules.</div>
+    <div class="modal-field">
+      <label class="flabel" for="elevate-pw-input">Password</label>
+      <input type="password" id="elevate-pw-input" class="finput" placeholder="Owner password"
+        onkeydown="if(event.key==='Enter')confirmElevateOwner()"/>
+    </div>
+    <div id="elevate-pw-error" class="modal-error" style="display:none"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-confirm" onclick="confirmElevateOwner()">Unlock Owner Access</button>
+      <button type="button" class="btn-modal-cancel" onclick="closeElevateOwnerModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL RECEIPT / ORDER CONFIRMATION -->
+<div id="receipt-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-receipt">
+    <div class="receipt-header">
+      <div class="receipt-status" id="receipt-status-icon">✓</div>
+      <div class="receipt-status-text" id="receipt-status-text">Payment Successful</div>
+    </div>
+    <div class="receipt-content">
+      <div class="receipt-number">Order #<span id="receipt-tx-id"></span></div>
+      <div class="receipt-date" id="receipt-tx-date"></div>
+      <div style="border-top:1px dashed #ccc;border-bottom:1px dashed #ccc;padding:12px 0;margin:12px 0">
+        <div style="font-size:11px;color:#888;font-weight:600;margin-bottom:8px">ITEMS ORDERED</div>
+        <div id="receipt-items" style="font-size:12px"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px;margin-bottom:12px">
+        <span>Customer:</span>
+        <strong id="receipt-customer">—</strong>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px;margin-bottom:8px">
+        <span>Channel:</span>
+        <strong id="receipt-channel">—</strong>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;font-size:12px;margin-bottom:12px;border-bottom:1px dashed #ccc;padding-bottom:12px">
+        <span>Payment:</span>
+        <strong id="receipt-payment">—</strong>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;font-size:14px;font-weight:700">
+        <span>Total:</span>
+        <span id="receipt-total" style="color:#155f48">—</span>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-confirm" onclick="printReceipt()">Print Receipt</button>
+      <button type="button" class="btn-confirm" style="background:#1565c0" onclick="printInvoiceFromReceipt()">Print Invoice</button>
+      <button type="button" class="btn-modal-cancel" onclick="closeReceiptModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL INCOMING ORDERS -->
+<div id="incoming-orders-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-incoming" style="max-width:520px">
+    <div class="modal-login-title" style="display:flex;align-items:center;gap:10px">
+      <span>🔔</span> Pending Orders from Delivery Platforms
+    </div>
+    <div class="modal-login-sub">Queue of orders waiting to be processed</div>
+    <div id="incoming-orders-list" style="max-height:400px;overflow-y:auto;margin:16px 0"></div>
+    <div style="font-size:11px;color:#888;padding:10px 14px;background:#f0f5f3;border-radius:6px;margin-bottom:12px">
+      <strong>💡 Tip:</strong> Click "Accept & Process" to confirm order and auto-fill details
+    </div>
+    <button type="button" class="btn-modal-cancel" onclick="closeIncomingOrders()">Close</button>
+  </div>
+</div>
+
+<!-- MODAL MARK PAID (AP) -->
+<div id="mark-paid-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card modal-compact">
+    <div class="modal-login-title">Mark Payable as Paid</div>
+    <div class="modal-login-sub" id="mark-paid-desc" style="margin-bottom:14px"></div>
+    <div class="modal-field">
+      <label class="flabel" for="mp-date">Payment date (required)</label>
+      <input type="date" id="mp-date" class="finput" required>
+    </div>
+    <div class="modal-field">
+      <label class="flabel" for="mp-method">Payment method / reference (optional)</label>
+      <input type="text" id="mp-method" class="finput" placeholder="e.g. BCA Transfer, QRIS">
+    </div>
+    <div class="modal-field">
+      <label class="flabel" for="mp-notes">Notes / proof reference</label>
+      <input type="text" id="mp-notes" class="finput" placeholder="e.g. bukti transfer #TRX-2026-001">
+    </div>
+    <div id="mark-paid-error" class="modal-error" style="display:none"></div>
+    <button type="button" class="btn-confirm" onclick="confirmMarkPaid()">Confirm Payment</button>
+    <button type="button" class="btn-modal-cancel" onclick="closeMarkPaidModal()">Cancel</button>
+  </div>
+</div>
+
+<!-- MODAL DELETE -->
+<div id="delete-modal" class="modal-overlay" style="display:none">
+  <div class="modal-card">
+    <div class="modal-login-title" id="delete-modal-title">Delete Record</div>
+    <div class="modal-login-sub" id="delete-modal-desc" style="margin-bottom:14px"></div>
+    <label class="flabel" for="delete-reason">Reason for deletion (required)</label>
+    <textarea id="delete-reason" class="finput" rows="3" placeholder="e.g. Duplicate entry, wrong amount, test data"></textarea>
+    <label class="flabel" for="delete-code" id="delete-code-label" style="margin-top:10px">Authorization code (required)</label>
+    <input id="delete-code" type="password" class="finput" placeholder="Owner password or manager PIN"/>
+    <div id="delete-modal-error" class="modal-error" style="display:none"></div>
+    <button type="button" class="btn-confirm" style="background:#c0392b;margin-top:12px" onclick="confirmDelete()">Confirm Delete</button>
+    <button type="button" class="btn-modal-cancel" onclick="closeDeleteModal()">Cancel</button>
+  </div>
+</div>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+    <header class="topbar">
+      <div class="topbar-left">
+        <div class="breadcrumb" id="breadcrumb">Operations / <strong>Sales Entry</strong></div>
+        <div class="page-title" id="topbar-title">Sales Entry</div>
+      </div>
+      <div class="topbar-right">
+        <button type="button" id="lang-toggle-btn" class="lang-toggle-btn" onclick="toggleLanguage()" title="Switch language">ID</button>
+        <span class="role-badge staff" id="role-badge">Staff</span>
+        <div class="company-badge">só.ra Coffee House</div>
+        <div class="date-badge" id="topbar-date"></div>
+      </div>
+    </header>
+
+    <div class="content">
+      <div id="fb-status" style="display:none" aria-hidden="true"></div>
+
+      <!-- ══════════════════════════════
+           DASHBOARD
+      ══════════════════════════════ -->
+      <div id="page-dashboard" class="hidden">
+        <div class="stats-grid">
+          <div class="stat-card yellow-top">
+            <div class="stat-label">Today&apos;s Revenue</div>
+            <div class="stat-value" id="s-rev">Rp 0</div>
+            <div class="stat-sub" id="s-tc">0 transactions</div>
+          </div>
+          <div class="stat-card red-top">
+            <div class="stat-label">Today&apos;s Expenses</div>
+            <div class="stat-value" id="s-exp">Rp 0</div>
+            <div class="stat-sub" id="s-ec">0 entries</div>
+          </div>
+          <div class="stat-card green-top">
+            <div class="stat-label">Net Profit Today</div>
+            <div class="stat-value" id="s-profit">Rp 0</div>
+            <div class="stat-sub">Revenue minus expenses</div>
+          </div>
+          <div class="stat-card teal-top">
+            <div class="stat-label">Revenue This Month</div>
+            <div class="stat-value" id="s-mtd-rev">Rp 0</div>
+            <div class="stat-sub" id="s-mtd-sub">Month-to-date</div>
+          </div>
+        </div>
+
+        <div class="grid2" style="grid-template-columns:1fr;">
+          <div class="sc sc-erp">
+            <div class="st">7-Day Revenue Trend</div>
+            <div id="trend-chart"></div>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="sc sc-erp">
+            <div class="st">Top Selling Menu Items (All Time)</div>
+            <div id="top-menu"></div>
+          </div>
+          <div class="sc sc-erp">
+            <div class="st">Today&apos;s Cash Flow</div>
+            <div id="cashflow-summary"></div>
+          </div>
+        </div>
+
+        <div class="sc sc-erp">
+          <div class="st">Recent Activity</div>
+          <div class="table-pro-wrap">
+            <table>
+              <thead><tr>
+                <th>Ref #</th><th>Date &amp; Time</th><th>Type</th>
+                <th>Description</th><th>Channel / Category</th>
+                <th>Payment</th><th>Cash In</th><th>Cash Out</th>
+              </tr></thead>
+              <tbody id="recent-activity"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           SALES ENTRY
+      ══════════════════════════════ -->
+      <div id="page-sales" class="hidden">
+        <!-- INCOMING ORDERS ALERT -->
+        <div id="incoming-orders-banner" class="incoming-orders-alert" style="display:none;margin-bottom:16px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:12px">
+              <span style="font-size:20px">🔔</span>
+              <div>
+                <div style="font-weight:700;color:#c0392b" id="incoming-count"></div>
+                <div style="font-size:11px;color:#888">Click to view pending orders</div>
+              </div>
+            </div>
+            <button type="button" class="btn-view-orders" onclick="openIncomingOrders()">View Orders</button>
+          </div>
+        </div>
+        
+        <!-- DEMO: TEST INCOMING ORDERS -->
+        <div style="display:none;margin-bottom:16px;padding:12px;background:#f0f5f3;border-radius:8px;font-size:11px;color:#555" id="demo-controls">
+          <div style="margin-bottom:8px;font-weight:700">Demo: Simulate Incoming Orders</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <button type="button" onclick="demoIncomingOrder('GrabFood')" style="padding:6px 10px;background:#ff6b6b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10px;font-weight:600">GrabFood Order</button>
+            <button type="button" onclick="demoIncomingOrder('GoFood')" style="padding:6px 10px;background:#ff5722;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10px;font-weight:600">GoFood Order</button>
+            <button type="button" onclick="demoIncomingOrder('ShopeeFood')" style="padding:6px 10px;background:#ee5a6f;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:10px;font-weight:600">ShopeeFood Order</button>
+          </div>
+        </div>
+        
+        <div class="sales-grid">
+          <div>
+            <div class="sc">
+              <div class="st">Transaction Details</div>
+              <div class="form-row2" style="margin-bottom:14px">
+                <div class="fg">
+                  <label class="flabel">Customer / Table / Order Ref.</label>
+                  <input type="text" id="cname" class="finput" placeholder="e.g. Table 3 / Walk-in / GoFood #GF-001">
+                </div>
+                <div class="fg">
+                  <label class="flabel">Sales Channel</label>
+                  <div class="ch-row">
+                    <button class="ch-btn active" onclick="selCh('Dine-in')"    id="ch-Dine-in">Dine-in</button>
+                    <button class="ch-btn"        onclick="selCh('GoFood')"     id="ch-GoFood">GoFood</button>
+                    <button class="ch-btn"        onclick="selCh('GrabFood')"   id="ch-GrabFood">GrabFood</button>
+                    <button class="ch-btn"        onclick="selCh('ShopeeFood')" id="ch-ShopeeFood">ShopeeFood</button>
+                  </div>
+                </div>
+              </div>
+              <div class="st">Select Menu Items</div>
+              <div class="cat-filters" id="cat-filters"></div>
+              <div class="menu-grid" id="menu-grid"></div>
+              <div id="menu-ingredient-detail" class="menu-ingredient-panel" style="display:none"></div>
+            </div>
+          </div>
+          <div>
+            <div class="op">
+              <div class="st">Order Summary</div>
+              <div class="oi" id="order-list"><div class="eo">Select items from the menu panel</div></div>
+              <div class="ot">
+                <div class="tr-row">
+                  <span style="color:var(--muted);font-size:12px">Subtotal</span>
+                  <span id="order-subtotal" style="color:var(--muted);font-size:12px">Rp 0</span>
+                </div>
+                <div class="tr-row" style="font-size:16px;font-weight:900;color:var(--teal-d);margin-top:4px">
+                  <span>TOTAL</span><span id="order-total">Rp 0</span>
+                </div>
+              </div>
+              <div class="flabel" style="margin-bottom:6px">Payment Method</div>
+              <div class="pm">
+                <button class="pb active" onclick="selPay('QRIS')"     id="pay-QRIS">QRIS</button>
+                <button class="pb"        onclick="selPay('Debit')"    id="pay-Debit">Debit</button>
+                <button class="pb"        onclick="selPay('Transfer')" id="pay-Transfer">Transfer</button>
+              </div>
+              <button class="btn-confirm" id="btn-proc" onclick="processOrder()" disabled>✓ Confirm & Record Transaction</button>
+              <button class="btn-clear" onclick="clearOrder()">✕ Clear Order</button>
+              <div class="jp-box" id="sales-jp" style="display:none">
+                <div class="jp-title">Auto Journal Entry Preview</div>
+                <div id="sales-jp-content"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           TRANSACTION LOG
+      ══════════════════════════════ -->
+      <!-- TODAY'S TRANSACTIONS — karyawan only, hari ini saja -->
+<div id="page-today-history" class="hidden">
+  <div class="sc">
+    <div class="sc-hdr">
+      <div class="st" style="margin:0">Today's Transactions</div>
+      <div id="today-date-label" style="font-size:12px;color:#888"></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th>Ref #</th><th>Time</th><th>Customer</th>
+        <th>Channel</th><th>Items</th><th>Payment</th><th>Total</th><th class="col-actions">Action</th>
+      </tr></thead>
+      <tbody id="today-history-body"></tbody>
+    </table>
+    <div class="history-total" id="today-history-total"></div>
+  </div>
+</div>
+      <div id="page-history" class="hidden">
+        <div class="sc">
+          <div class="sc-hdr">
+            <div class="st" style="margin:0">Transaction Log — Cash Inflows</div>
+            <div class="exp-btns">
+              <button class="btn-exp" onclick="exportCSV('transactions')">CSV</button>
+              <button class="btn-exp grn" onclick="exportExcel('transactions')">Excel</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <select id="f-pay" onchange="onHistoryFilter()">
+              <option value="all">All Payments</option>
+              <option value="QRIS">QRIS</option>
+              <option value="Debit">Debit</option>
+              <option value="Transfer">Transfer</option>
+            </select>
+            <select id="f-ch" onchange="onHistoryFilter()">
+              <option value="all">All Channels</option>
+              <option value="Dine-in">Dine-in</option>
+              <option value="GoFood">GoFood</option>
+              <option value="GrabFood">GrabFood</option>
+              <option value="ShopeeFood">ShopeeFood</option>
+            </select>
+            <label class="cal-label">From<input type="date" id="f-date-from" class="cal-input" onchange="onHistoryFilter()"></label>
+            <label class="cal-label">To<input type="date" id="f-date-to" class="cal-input" onchange="onHistoryFilter()"></label>
+            <button type="button" class="btn-filter-clear" onclick="clearHistoryDateFilter()">Clear dates</button>
+          </div>
+          <div class="table-pro-wrap">
+            <table>
+              <thead><tr>
+                <th>Ref #</th><th>Date &amp; Time</th><th>Customer / Ref</th>
+                <th>Channel</th><th>Items Sold</th><th>Payment</th><th>Amount</th><th class="col-actions">Action</th>
+              </tr></thead>
+              <tbody id="history-body"></tbody>
+            </table>
+          </div>
+          <div id="history-pagination"></div>
+          <div class="history-total" id="history-total"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           EXPENSE ENTRY
+      ══════════════════════════════ -->
+      <div id="page-expense" class="hidden">
+        <div class="sales-grid">
+          <div>
+            <div class="sc">
+              <div class="st">Expense Details</div>
+              <div class="fg" style="margin-bottom:12px">
+                <label class="flabel">Expense Category</label>
+                <select id="exp-cat" class="finput" onchange="updateExpPreview()">
+                  <option value="">— Select Category —</option>
+                  <option value="Salary Expense">Salary Expense — Employee Wages</option>
+                  <option value="Rent Expense">Rent Expense — Ruko Citywalk Sudirman</option>
+                  <option value="Utilities Expense">Utilities Expense — Electricity / Water / WiFi</option>
+                  <option value="Marketing Expense">Marketing Expense — Promotions / Platform Fee</option>
+                  <option value="Maintenance Expense">Maintenance & Equipment</option>
+                  <option value="Other Expense">Other Operational Expense</option>
+                </select>
+              </div>
+              <div class="fg" style="margin-bottom:12px">
+                <label class="flabel">Supplier / Vendor</label>
+                <input type="text" id="exp-supplier" class="finput" placeholder="e.g. Pak Hendra, PLN, Telkom" oninput="updateExpPreview()">
+              </div>
+              <div class="fg" style="margin-bottom:12px">
+                <label class="flabel">Description</label>
+                <input type="text" id="exp-desc" class="finput" placeholder="e.g. Coffee beans 5kg, PLN monthly bill" oninput="updateExpPreview()">
+              </div>
+              <div class="form-row2">
+                <div class="fg">
+                  <label class="flabel">Amount (Rp)</label>
+                  <input type="number" id="exp-amount" class="finput" placeholder="0" oninput="updateExpPreview()">
+                </div>
+                <div class="fg">
+                  <label class="flabel">Payment Method</label>
+                  <select id="exp-pay" class="finput" onchange="updateExpPreview()">
+                    <option value="Cash">Cash</option>
+                    <option value="Transfer">Bank Transfer</option>
+                    <option value="Debit">Debit Card</option>
+                  </select>
+                </div>
+              </div>
+              <div class="fg" style="margin-top:12px">
+                <label class="flabel">Settlement</label>
+                <select id="exp-settlement" class="finput" onchange="updateExpenseRouting()">
+                  <option value="cash">Cash / paid now — posts to General Ledger</option>
+                  <option value="credit">On account / credit (AP) — Account Payable</option>
+                </select>
+              </div>
+              <div class="form-row2" style="margin-top:12px">
+                <div class="fg">
+                  <label class="flabel">Invoice Date</label>
+                  <input type="date" id="exp-invoice-date" class="finput" onchange="updateExpenseRouting()">
+                </div>
+                <div class="fg">
+                  <label class="flabel">Due Date (payment)</label>
+                  <input type="date" id="exp-due-date" class="finput" onchange="updateExpenseRouting()">
+                </div>
+              </div>
+              <div id="exp-routing-info" style="margin-top:10px;font-size:11px;color:#888;padding:8px 12px;border-radius:6px;background:#f8f8f8;display:none"></div>
+              <button class="btn-confirm" style="margin-top:16px;background:#c0392b" onclick="processExpense()" id="exp-submit-btn">✓ Record Expense</button>
+            </div>
+          </div>
+          <div>
+            <div class="op" style="background:#fff5f5;border-color:#f5c6cb">
+              <div class="st">Expense Preview</div>
+              <div id="exp-preview"><div class="eo">Fill in the form to preview</div></div>
+              <div class="jp-box" id="exp-jp" style="display:none;margin-top:12px">
+                <div class="jp-title">Auto Journal Entry Preview</div>
+                <div id="exp-jp-content"></div>
+              </div>
+              <div style="margin-top:16px">
+                <div class="st">Today's Expenses</div>
+                <div id="today-exp-list"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           EXPENSE LOG
+      ══════════════════════════════ -->
+      <div id="page-explog" class="hidden">
+        <div class="sc">
+          <div class="sc-hdr">
+            <div class="st" style="margin:0">Expense Log — Cash Outflows</div>
+            <div class="exp-btns">
+              <button class="btn-exp" onclick="exportCSV('expenses')">CSV</button>
+              <button class="btn-exp grn" onclick="exportExcel('expenses')">Excel</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <select id="ef-cat" onchange="onExpLogFilter()">
+              <option value="all">All Categories</option>
+              <option value="Cost of Goods Sold">COGS</option>
+              <option value="Salary Expense">Salary</option>
+              <option value="Rent Expense">Rent</option>
+              <option value="Utilities Expense">Utilities</option>
+              <option value="Marketing Expense">Marketing</option>
+              <option value="Maintenance Expense">Maintenance</option>
+              <option value="Other Expense">Other</option>
+            </select>
+            <label class="cal-label">From<input type="date" id="ef-date-from" class="cal-input" onchange="onExpLogFilter()"></label>
+            <label class="cal-label">To<input type="date" id="ef-date-to" class="cal-input" onchange="onExpLogFilter()"></label>
+            <button type="button" class="btn-filter-clear" onclick="clearExpLogDateFilter()">Clear dates</button>
+          </div>
+          <div class="table-pro-wrap">
+            <table>
+              <thead><tr>
+                <th>Ref #</th><th>Date</th><th>Category</th>
+                <th>Description</th><th>Payment</th><th>Amount</th><th class="col-actions">Action</th>
+              </tr></thead>
+              <tbody id="explog-body"></tbody>
+            </table>
+          </div>
+          <div id="explog-pagination"></div>
+          <div class="history-total" id="explog-total"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           CASH RECONCILIATION
+      ══════════════════════════════ -->
+      <div id="page-recon" class="hidden">
+
+        <!-- Tool Card -->
+        <div class="sc" style="border-left:4px solid var(--teal)">
+          <div class="st">Bank Reconciliation Tool</div>
+
+          <!-- Input row — matches screenshot layout -->
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:16px;align-items:flex-end;margin-bottom:20px">
+            <div class="fg">
+              <label class="flabel">Statement Date</label>
+              <input type="date" id="recon-date" class="finput" style="font-size:14px;padding:11px 13px">
+            </div>
+            <div class="fg">
+              <label class="flabel">Bank Statement Balance (Rp)</label>
+              <input type="number" id="recon-bank-bal" class="finput"
+                placeholder="Enter bank statement balance"
+                style="font-size:14px;padding:11px 13px">
+            </div>
+            <button onclick="runReconciliation()"
+              style="padding:12px 24px;background:var(--yellow);color:#5a4000;border:none;
+                border-radius:8px;font-size:13px;font-weight:800;font-family:'DM Sans',sans-serif;
+                cursor:pointer;white-space:nowrap;transition:background .15s;height:46px"
+              onmouseover="this.style.background='#d4aa10'"
+              onmouseout="this.style.background='var(--yellow)'">
+              Run Reconciliation
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Result panel (filled by JS) -->
+        <div id="recon-result-panel" style="display:none"></div>
+      </div>
+
+      <!-- ══════════════════════════════
+           GENERAL LEDGER (BUKU BESAR)
+      ══════════════════════════════ -->
+      <div id="page-journal" class="hidden">
+        <div class="sc">
+          <div class="sc-hdr">
+            <div class="st" style="margin:0">General Ledger (Buku Besar)</div>
+            <div class="exp-btns">
+              <button class="btn-exp" onclick="exportCSV('journal')">CSV</button>
+              <button class="btn-exp grn" onclick="exportExcel('journal')">Excel</button>
+            </div>
+          </div>
+          <div class="filter-bar">
+            <label class="cal-label">Month<input type="month" id="jf-month" class="cal-input" onchange="onJournalFilter()"></label>
+            <label class="cal-label">From<input type="date" id="jf-date-from" class="cal-input" onchange="onJournalFilter()"></label>
+            <label class="cal-label">To<input type="date" id="jf-date-to" class="cal-input" onchange="onJournalFilter()"></label>
+            <button type="button" class="btn-filter-clear" onclick="clearJournalFilter()">Clear filter</button>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="ledger-table">
+              <thead><tr>
+                <th>Tanggal</th><th>Keterangan</th><th>Debit (Rp)</th><th>Kredit (Rp)</th>
+              </tr></thead>
+              <tbody id="journal-body"></tbody>
+            </table>
+          </div>
+          <div class="journal-totals" id="journal-totals"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           DAILY SALES REPORT
+      ══════════════════════════════ -->
+      <div id="page-daily" class="hidden">
+        <div class="sc-hdr" style="margin-bottom:14px">
+          <div class="st" style="margin:0">Daily Sales Report</div>
+          <div class="exp-btns">
+            <button class="btn-exp" onclick="exportCSV('daily')">CSV</button>
+            <button class="btn-exp grn" onclick="exportExcel('daily')">Excel</button>
+          </div>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="sc" style="margin-bottom:14px;padding:14px 18px">
+          <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+            <div class="fg">
+              <label class="flabel" style="margin-bottom:4px">Month</label>
+              <input type="month" id="dr-month" class="cal-input" onchange="renderDailyReport()">
+            </div>
+            <div class="fg">
+              <label class="flabel" style="margin-bottom:4px">Sales Channel</label>
+              <select id="dr-channel" onchange="renderDailyReport()" class="finput" style="padding:7px 10px;min-width:130px">
+                <option value="all">All Channels</option>
+                <option value="Dine-in">Dine-in</option>
+                <option value="GoFood">GoFood</option>
+                <option value="GrabFood">GrabFood</option>
+                <option value="ShopeeFood">ShopeeFood</option>
+              </select>
+            </div>
+            <div class="fg">
+              <label class="flabel" style="margin-bottom:4px">Payment Method</label>
+              <select id="dr-payment" onchange="renderDailyReport()" class="finput" style="padding:7px 10px;min-width:130px">
+                <option value="all">All Payments</option>
+                <option value="QRIS">QRIS</option>
+                <option value="Debit">Debit</option>
+                <option value="Transfer">Transfer</option>
+              </select>
+            </div>
+            <div style="margin-top:16px">
+              <button type="button" onclick="document.getElementById('dr-month').value='';document.getElementById('dr-channel').value='all';document.getElementById('dr-payment').value='all';renderDailyReport()"
+                style="padding:7px 14px;border-radius:6px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--muted)">
+                ↺ Reset Filter
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Summary stats -->
+        <div id="dr-summary" class="stats-grid" style="margin-bottom:16px"></div>
+
+        <div class="sc">
+          <div class="st">Daily Breakdown</div>
+          <table>
+            <thead><tr>
+              <th>Date</th><th>Transactions</th><th>Total Revenue</th>
+              <th>Avg / Transaction</th><th>Revenue by Channel</th><th>Revenue by Payment</th>
+            </tr></thead>
+            <tbody id="dr-body"></tbody>
+          </table>
+          <div class="history-total" id="dr-total"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           FINANCIAL REPORT
+      ══════════════════════════════ -->
+      <div id="page-deletion-history" class="hidden">
+        <div class="sc">
+          <div class="sc-hdr">
+            <div class="st" style="margin:0">Deletion History — Audit Trail</div>
+          </div>
+          <div class="filter-bar">
+            <label class="cal-label">Month<input type="month" id="dh-month" class="cal-input" onchange="onDeletionHistoryMonthChange()"></label>
+            <label class="cal-label">From<input type="date" id="dh-date-from" class="cal-input" onchange="onDeletionHistoryDateChange()"></label>
+            <label class="cal-label">To<input type="date" id="dh-date-to" class="cal-input" onchange="onDeletionHistoryDateChange()"></label>
+            <button type="button" class="btn-filter-clear" onclick="clearDeletionHistoryFilter()">Clear filter</button>
+          </div>
+          <table>
+            <thead><tr>
+              <th>Deleted At</th><th>Type</th><th>Ref #</th><th>Original Date</th>
+              <th>Amount</th><th>Reason</th><th>Deleted By</th>
+            </tr></thead>
+            <tbody id="deletion-history-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="page-report" class="hidden">
+        <div class="sc-hdr" style="margin-bottom:12px">
+          <div class="st" style="margin:0">Financial Report</div>
+          <div class="exp-btns">
+            <button class="btn-exp" onclick="exportCSV('report')">CSV</button>
+            <button class="btn-exp grn" onclick="exportExcel('report')">Excel</button>
+          </div>
+        </div>
+        <div class="sc" style="margin-bottom:14px;padding:14px 18px">
+          <div class="filter-bar" style="margin:0">
+            <label class="cal-label">Income statement period<input type="month" id="rep-month" class="cal-input" onchange="renderReport()"></label>
+            <button type="button" class="btn-filter-clear" onclick="document.getElementById('rep-month').value='';renderReport()">All periods (cumulative)</button>
+          </div>
+          <div id="rep-period-label" class="period-banner" style="margin-top:10px;margin-bottom:0"></div>
+        </div>
+
+        <!-- Income Statement -->
+        <div class="sc" style="border-left:4px solid var(--teal)">
+          <div class="st">Income Statement</div>
+          <div style="overflow-x:auto">
+            <table>
+            <thead><tr><th>Account</th><th>Notes</th><th>Amount (Rp)</th></tr></thead>
+            <tbody id="rep-income"></tbody>
+          </table>
+          </div>
+        </div>
+
+        <div class="rg">
+          <div class="sc">
+            <div class="st">Sales by Menu Item</div>
+            <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Menu Item</th><th>Category</th><th>Qty</th><th>Revenue</th></tr></thead>
+              <tbody id="rep-menu"></tbody>
+            </table>
+          </div>
+          </div>
+          <div class="sc">
+            <div class="st">Sales by Channel</div>
+            <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Channel</th><th>Orders</th><th>Revenue</th><th>%</th></tr></thead>
+              <tbody id="rep-ch"></tbody>
+            </table>
+          </div>
+          </div>
+        </div>
+
+        <div class="rg">
+          <div class="sc">
+            <div class="st">Expenses by Category</div>
+            <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Category</th><th>Entries</th><th>Total</th><th>%</th></tr></thead>
+              <tbody id="rep-exp-cat"></tbody>
+            </table>
+          </div>
+          </div>
+          <div class="sc">
+            <div class="st">Sales by Payment Method</div>
+            <div style="overflow-x:auto">
+            <table>
+              <thead><tr><th>Method</th><th>Transactions</th><th>Total</th><th>%</th></tr></thead>
+              <tbody id="rep-pay"></tbody>
+            </table>
+          </div>
+          </div>
+        </div>
+      </div>
+
+
+      <!-- ══════════════════════════════
+           INVENTORY
+      ══════════════════════════════ -->
+      <div id="page-inventory" class="hidden">
+        <div class="sc-hdr" style="margin-bottom:14px">
+          <div class="st" style="margin:0">Stock & Inventory</div>
+          <div class="exp-btns">
+            <button class="btn-exp grn" onclick="addStockModal()">+ Add Item</button>
+          </div>
+        </div>
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+          <div class="stat-card green-top">
+            <div class="stat-label">Total SKU</div>
+            <div class="stat-value" id="inv-total-sku">0</div>
+            <div class="stat-sub">unique items tracked</div>
+          </div>
+          <div class="stat-card yellow-top">
+            <div class="stat-label">Low Stock Items</div>
+            <div class="stat-value" id="inv-low-stock">0</div>
+            <div class="stat-sub">below minimum level</div>
+          </div>
+          <div class="stat-card red-top">
+            <div class="stat-label">Out of Stock</div>
+            <div class="stat-value" id="inv-out-stock">0</div>
+            <div class="stat-sub">needs restock</div>
+          </div>
+        </div>
+        <div class="sc">
+          <div class="st">Inventory List</div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Item Name</th><th>Category</th><th>Unit</th>
+                <th>Current Stock</th><th>Min. Stock</th><th>Status</th><th>Last Updated</th><th>Action</th>
+              </tr></thead>
+              <tbody id="inventory-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Stock Modal -->
+      <div id="inv-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;align-items:center;justify-content:center">
+        <div style="background:#fff;border-radius:16px;padding:28px;width:380px;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+          <div style="font-size:16px;font-weight:800;color:#155f48;margin-bottom:16px">Add / Update Stock Item</div>
+          <div class="fg" style="margin-bottom:10px">
+            <label class="flabel">Item Name</label>
+            <input type="text" id="inv-name" class="finput" placeholder="e.g. Coffee Beans, Milk, Cups">
+          </div>
+          <div class="fg" style="margin-bottom:10px">
+            <label class="flabel">Category</label>
+            <select id="inv-cat" class="finput" onchange="updateInvCategoryHelp()">
+              <option value="Raw Material">Raw Material</option>
+              <option value="Packaging">Packaging</option>
+              <option value="Beverage Base">Beverage Base</option>
+              <option value="Other">Other</option>
+            </select>
+            <div id="inv-cat-help" class="inv-cat-help"></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div class="fg">
+              <label class="flabel">Current Stock</label>
+              <input type="number" id="inv-qty" class="finput" placeholder="0">
+            </div>
+            <div class="fg">
+              <label class="flabel">Unit</label>
+              <input type="text" id="inv-unit" class="finput" placeholder="kg / pcs / liter">
+            </div>
+          </div>
+          <div class="fg" style="margin-bottom:16px">
+            <label class="flabel">Minimum Stock Level</label>
+            <input type="number" id="inv-min" class="finput" placeholder="e.g. 5">
+          </div>
+          <button onclick="saveInventoryItem()" style="width:100%;padding:11px;background:#155f48;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer;margin-bottom:8px">Save Item</button>
+          <button onclick="document.getElementById('inv-modal').style.display='none'" style="width:100%;padding:9px;background:transparent;color:#888;border:1.5px solid #d4e9e1;border-radius:8px;font-size:12px;cursor:pointer">Cancel</button>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           PURCHASING
+      ══════════════════════════════ -->
+      <div id="page-purchasing" class="hidden">
+        <div class="sales-grid">
+          <div class="sc">
+            <div class="st">New Purchase Order</div>
+            <div class="fg" style="margin-bottom:12px">
+              <label class="flabel">Supplier Name</label>
+              <input type="text" id="po-supplier" class="finput" placeholder="e.g. Pak Hendra, PT Indofood">
+            </div>
+            <div class="fg" style="margin-bottom:12px">
+              <label class="flabel">Item / Description</label>
+              <input type="text" id="po-item" class="finput" placeholder="e.g. Coffee beans 5kg, Milk 10L">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+              <div class="fg">
+                <label class="flabel">Quantity</label>
+                <input type="number" id="po-qty" class="finput" placeholder="0">
+              </div>
+              <div class="fg">
+                <label class="flabel">Unit</label>
+                <input type="text" id="po-unit" class="finput" placeholder="kg / pcs / liter">
+              </div>
+            </div>
+            <div class="fg" style="margin-bottom:12px">
+              <label class="flabel">Total Amount (Rp)</label>
+              <input type="number" id="po-amount" class="finput" placeholder="0">
+            </div>
+            <div class="fg" style="margin-bottom:12px">
+              <label class="flabel">Payment Method</label>
+              <select id="po-payment" class="finput">
+                <option value="Cash">Cash</option>
+                <option value="Transfer">Bank Transfer</option>
+                <option value="Account Payable">Account Payable (Pay Later)</option>
+              </select>
+            </div>
+            <div class="fg" style="margin-bottom:12px">
+              <label class="flabel">Purchase Date</label>
+              <input type="date" id="po-date" class="finput">
+            </div>
+            <p id="po-gl-note" style="font-size:10px;color:#888;margin-bottom:12px;line-height:1.45">
+              Posts to <strong>General Ledger</strong> (Dr Inventory, Cr Cash or AP) and updates stock when item matches inventory.
+            </p>
+            <button onclick="savePurchaseOrder()" style="width:100%;padding:12px;background:#155f48;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:800;cursor:pointer">✓ Record Purchase</button>
+          </div>
+          <div class="sc" style="background:#f8fcfa">
+            <div class="st">Purchase History</div>
+            <div id="po-list" style="font-size:12px;color:#888">No purchases recorded yet.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           ACCOUNT PAYABLE
+      ══════════════════════════════ -->
+      <div id="page-payable" class="hidden">
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
+          <div class="stat-card red-top">
+            <div class="stat-label">Total Outstanding</div>
+            <div class="stat-value" id="ap-total">Rp 0</div>
+            <div class="stat-sub">unpaid payables</div>
+          </div>
+          <div class="stat-card yellow-top">
+            <div class="stat-label">Overdue</div>
+            <div class="stat-value" id="ap-overdue">0</div>
+            <div class="stat-sub">past due date</div>
+          </div>
+          <div class="stat-card green-top">
+            <div class="stat-label">Paid This Month</div>
+            <div class="stat-value" id="ap-paid">Rp 0</div>
+            <div class="stat-sub">settled payables</div>
+          </div>
+        </div>
+        <div class="sc">
+          <div class="st">Outstanding Payables</div>
+          <div style="font-size:11px;color:#888;margin-bottom:10px">Record new payables and expenses with a future due date via <strong>Expense Entry</strong>.</div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Supplier</th><th>Description</th><th>Amount</th><th>Due Date</th><th>Status</th><th>Action</th>
+              </tr></thead>
+              <tbody id="payable-body"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="sc" style="margin-top:16px">
+          <div class="st">Paid Payables History</div>
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>Supplier</th><th>Description</th><th>Amount</th><th>Invoice Date</th><th>Due Date</th><th>Paid Date</th><th>Payment Details</th>
+              </tr></thead>
+              <tbody id="payable-paid-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           BALANCE SHEET
+      ══════════════════════════════ -->
+      <div id="page-balance-sheet" class="hidden">
+        <div class="sc-hdr" style="margin-bottom:12px">
+          <div class="st" style="margin:0">Balance Sheet</div>
+          <div class="exp-btns">
+            <button class="btn-exp" onclick="exportCSV('balance-sheet')">CSV</button>
+            <button class="btn-exp grn" onclick="exportExcel('balance-sheet')">Excel</button>
+          </div>
+        </div>
+        <div class="sc" style="margin-bottom:14px;padding:14px 18px">
+          <div class="filter-bar" style="margin:0;align-items:center">
+            <label class="flabel" style="margin:0 8px 0 0">Period:</label>
+            <input type="month" id="bs-month" class="finput" style="max-width:180px" onchange="renderBalanceSheet()">
+            <button type="button" onclick="document.getElementById('bs-month').value='';renderBalanceSheet()" style="padding:7px 14px;border-radius:6px;border:1.5px solid var(--border);background:#fff;font-size:11px;font-weight:600;font-family:inherit;cursor:pointer;color:var(--muted)">All Periods</button>
+          </div>
+          <div id="bs-period-label" style="font-size:11px;color:var(--muted);margin-top:8px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div>
+            <div class="sc" style="border-left:4px solid #27ae60">
+              <div class="st" style="color:#27ae60">Assets</div>
+              <table>
+                <thead><tr><th>Account</th><th>Notes</th><th style="text-align:right">Amount (Rp)</th></tr></thead>
+                <tbody id="bs-assets"></tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="sc" style="border-left:4px solid #c0392b">
+              <div class="st" style="color:#c0392b">Liabilities & Equity</div>
+              <table>
+                <thead><tr><th>Account</th><th>Notes</th><th style="text-align:right">Amount (Rp)</th></tr></thead>
+                <tbody id="bs-liabilities"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="sc" style="margin-top:4px;border-left:4px solid var(--yellow)">
+          <div id="bs-check" style="font-size:14px;font-weight:800;text-align:center;padding:8px"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════
+           MENU MANAGEMENT (Owner)
+      ══════════════════════════════ -->
+      <div id="page-menu-management" class="hidden">
+        <div class="sales-grid">
+          <div class="sc">
+            <div class="sc-hdr">
+              <div class="st" style="margin:0">Menu Catalog</div>
+              <button type="button" class="btn-exp grn" onclick="openMenuItemForm()">+ Add Menu Item</button>
+            </div>
+            <div style="overflow-x:auto;max-height:420px">
+              <table>
+                <thead><tr>
+                  <th>Name</th><th>Category</th><th>Price</th><th>Recipe</th><th>Action</th>
+                </tr></thead>
+                <tbody id="menu-mgmt-body"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="sc" id="menu-recipe-panel" style="background:#f8fcfa">
+            <div class="st">Recipe / Ingredients</div>
+            <p id="menu-recipe-hint" style="font-size:11px;color:#888;margin-bottom:12px">Select a menu item to link inventory ingredients (qty per serving).</p>
+            <div id="menu-recipe-editor" style="display:none">
+              <div id="menu-recipe-lines"></div>
+              <button type="button" onclick="addRecipeLine()" style="margin:10px 0;padding:6px 12px;font-size:11px;border:1px dashed #c8e6dc;background:#fff;border-radius:6px;cursor:pointer;color:#155f48;font-weight:700">+ Add ingredient line</button>
+              <button type="button" class="btn-confirm" style="width:100%" onclick="saveMenuRecipe()">Save Recipe</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Menu item form modal -->
+      <div id="menu-item-modal" class="modal-overlay" style="display:none">
+        <div class="modal-card modal-compact">
+          <div class="modal-login-title" id="menu-item-modal-title">Add Menu Item</div>
+          <input type="hidden" id="menu-edit-id">
+          <div class="modal-field">
+            <label class="flabel" for="menu-form-name">Name</label>
+            <input type="text" id="menu-form-name" class="finput">
+          </div>
+          <div class="modal-field">
+            <label class="flabel" for="menu-form-cat">Category</label>
+            <input type="text" id="menu-form-cat" class="finput" list="menu-cat-list" placeholder="e.g. Andalan">
+            <datalist id="menu-cat-list"></datalist>
+          </div>
+          <div class="modal-field">
+            <label class="flabel" for="menu-form-price">Price (Rp)</label>
+            <input type="number" id="menu-form-price" class="finput">
+          </div>
+          <button type="button" class="btn-confirm" onclick="saveMenuItemForm()">Save</button>
+          <button type="button" class="btn-modal-cancel" onclick="closeMenuItemForm()">Cancel</button>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div class="toast" id="toast"></div>
+
+<script src="js/data.js"></script>
+<script src="js/seedGenerator.js"></script>
+<script src="js/firebase.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
