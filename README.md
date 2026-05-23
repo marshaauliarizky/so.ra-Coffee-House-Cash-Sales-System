@@ -1,20 +1,22 @@
-# bé.ka Coffee & Space — AIS
+# Sora Coffee House
 ## Sales & Cash Information System
-### AIS Final Project 2026 | Putri · Marsya · Natharina
 
 ---
 
 ## 📁 File Structure
 ```
-beka-pos-v3/
+Sora Cash & Sales System/
 ├── index.html              ← Main app (open this in browser)
+├── login.html              ← Login page
 ├── css/
 │   └── style.css           ← All styling
 ├── js/
-│   ├── data.js             ← Real bé.ka menu (55 items) + constants
-│   ├── seedGenerator.js    ← 2-month realistic data (~180 tx/day)
+│   ├── app.js              ← All application logic
+│   ├── auth.js             ← Session authentication
+│   ├── data.js             ← Sora menu (55 items) + constants
 │   ├── firebase.js         ← Firebase Firestore integration
-│   └── app.js              ← All application logic
+│   ├── i18n.js             ← Localization
+│   └── seedGenerator.js    ← 2-month realistic data (~180 tx/day)
 └── README.md
 ```
 
@@ -31,7 +33,7 @@ beka-pos-v3/
 
 ### Step 1: Create Firebase Project
 1. Go to [console.firebase.google.com](https://console.firebase.google.com)
-2. Click **Add project** → name it `beka-coffee-ais`
+2. Click **Add project** → name it `sora-coffee-house`
 3. Disable Google Analytics (optional) → Create project
 
 ### Step 2: Enable Firestore
@@ -74,7 +76,7 @@ const firebaseConfig = {
 
 ## ☁️ Deploy to Netlify (Free)
 1. Go to [netlify.com](https://netlify.com) → Add new site → Deploy manually
-2. Drag and drop the `beka-pos-v3` folder
+2. Drag and drop the `Sora Cash & Sales System` folder
 3. Done — get a `*.netlify.app` URL instantly
 
 ---
@@ -84,7 +86,7 @@ const firebaseConfig = {
 | Module | Description |
 |--------|-------------|
 | **Dashboard** | Revenue, expenses, net profit, 7-day trend, top menu |
-| **Sales Entry** | POS interface with real bé.ka menu, 4 channels, 3 payments |
+| **Sales Entry** | POS interface with real Sora menu, 4 channels, 3 payments |
 | **Transaction Log** | Filter by date/channel/payment, export CSV |
 | **Expense Entry** | COGS + fixed costs, auto journal preview |
 | **Expense Log** | Filter by category/date, export CSV |
@@ -106,7 +108,7 @@ const firebaseConfig = {
 ---
 
 ## 🍽️ Menu Categories (55 items)
-- **Andalan** — Signature drinks (Kopi Susu Béka, Aren, etc.)
+- **Andalan** — Signature drinks
 - **Klasik** — Classic coffee (Americano, Latte, Cappuccino, etc.)
 - **Frappe** — Blended frappes (Vanilla, Matcha, Oreo, etc.)
 - **Bukan Kopi** — Non-coffee (Matcha, Coklat, Earl Grey, etc.)
