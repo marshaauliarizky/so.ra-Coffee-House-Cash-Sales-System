@@ -3,7 +3,7 @@
 
 ---
 
-## 📁 File Structure
+## File Structure
 ```
 Sora Cash & Sales System/
 ├── index.html              ← Main app (open this in browser)
@@ -22,14 +22,14 @@ Sora Cash & Sales System/
 
 ---
 
-## 🚀 Quick Start (Local — No Firebase)
+## Quick Start (Local — No Firebase)
 1. Extract ZIP
 2. Open `index.html` in any browser
 3. Done! Runs fully offline with 2 months of seed data
 
 ---
 
-## 🔥 Firebase Setup (Cloud — For Live Demo)
+## Firebase Setup (Cloud — For Live Demo)
 
 ### Step 1: Create Firebase Project
 1. Go to [console.firebase.google.com](https://console.firebase.google.com)
@@ -81,7 +81,7 @@ const firebaseConfig = {
 
 ---
 
-## 📊 System Features
+## System Features
 
 | Module | Description |
 |--------|-------------|
@@ -98,7 +98,7 @@ const firebaseConfig = {
 
 ---
 
-## 🧾 Accounting Logic
+## Accounting Logic
 - **Sales:** Dr Cash-[QRIS/Debit/Transfer] | Cr Sales Revenue
 - **COGS:** Dr Cost of Goods Sold | Cr Cash
 - **Salary:** Dr Salary Expense | Cr Cash/Transfer
@@ -107,7 +107,7 @@ const firebaseConfig = {
 
 ---
 
-## 🍽️ Menu Categories (55 items)
+## Menu Categories (55 items)
 - **Andalan** — Signature drinks
 - **Klasik** — Classic coffee (Americano, Latte, Cappuccino, etc.)
 - **Frappe** — Blended frappes (Vanilla, Matcha, Oreo, etc.)
